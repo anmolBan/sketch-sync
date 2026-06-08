@@ -1,6 +1,7 @@
 import CredentialsProvider from "next-auth/providers/credentials";
 import { type NextAuthOptions, type DefaultSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import GithubProvider from "next-auth/providers/github";
 import { UserOAuthSigninSchema, UserSigninSchema } from "@repo/types";
 import prisma from "@repo/db";
 import bcrypt from "bcrypt";
@@ -98,12 +99,16 @@ export const authOptions: NextAuthOptions = {
       clientId:     process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
+    GithubProvider({
+      clientId:     process.env.GITHUB_CLIENT_ID || "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+    })
   ],
 
   callbacks: {
     // async signIn({ user, account})
     async signIn({ user, account }) {
-      if (account?.provider === "google") {
+      if (account?.provider === "google" || account?.provider === "github") {
         if (!user.email || !user.name) return false;
 
         const parsedData = UserOAuthSigninSchema.safeParse({
@@ -111,7 +116,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email ?? "",
         });
         if (!parsedData.success) {
-          console.error("[NextAuth] Google signIn failed: Invalid user data from Google.");
+          console.error(`[NextAuth] ${account.provider} signIn failed: Invalid user data from ${account.provider}.`);
           return false;
         }
 
@@ -137,7 +142,7 @@ export const authOptions: NextAuthOptions = {
           user.id = dbUser.id; // Ensure the user object has the correct ID from the database
           return true;
         } catch (err) {
-          console.error("[NextAuth] Google signIn failed:", (err as Error).message);
+          console.error(`[NextAuth] ${account.provider} signIn failed:`, (err as Error).message);
           return false;
         }
       }
